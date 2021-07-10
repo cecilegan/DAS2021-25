@@ -1,0 +1,24 @@
+---
+title: "Group Project 2"
+author: "Group 25"
+date: "10/07/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(tidyverse)
+library(rmarkdown)
+library(knitr)
+```
+
+
+``` {R data.processing}
+ikea <- read.csv("dataset25.csv")
+
+ikea$price <- cut(ikea$price, breaks = c(-Inf, 1000, Inf), labels = c("0", "1"))
+
+
+```
