@@ -20,5 +20,5 @@ ikea <- read.csv("dataset25.csv")
 
 ikea$price <- cut(ikea$price, breaks = c(-Inf, 1000, Inf), labels = c("0", "1"))
 
-
+123123
 ```
