@@ -1,0 +1,37 @@
+---
+title: "missing value"
+author: "group25"
+date: "2021/7/14"
+output: html_document
+---
+
+```{r echo=TRUE}
+#install.packages(c("VIM","mice"))
+library(tidyverse)
+library(moderndive)
+library(gapminder)
+library(sjPlot)
+library(stats)
+library(jtools)
+```
+
+
+```{r echo=TRUE}
+data25 = read.csv('dataset25.csv')
+library(mice)
+data(data25,package="VIM")
+head(data25)
+md.pattern(data25)
+```
+
+
+```{r echo=TRUE}
+library("VIM")
+aggr(data25,prop=FALSE,numbers=TRUE)
+
+```
+```{r echo=TRUE}
+
+
+```
+
