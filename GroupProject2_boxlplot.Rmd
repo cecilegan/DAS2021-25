@@ -1,0 +1,80 @@
+---
+title: "Group Project 2"
+author: "Group 25"
+date: "10/07/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(tidyverse)
+library(rmarkdown)
+library(knitr)
+```
+
+
+``` {R data.processing}
+ikea <- read.csv("dataset25.csv")
+
+ikea$price <- cut(ikea$price, breaks = c(-Inf, 1000, Inf), labels = c("0", "1"))
+ikea<-ikea %>%
+  mutate(volume=depth*height*width)
+
+
+```
+
+``` {R boxplot}
+boxplot_d<-ikea %>% 
+   ggplot(aes(x = price, y = depth)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "depth")+
+        scale_x_discrete(name = "price") +
+        ggtitle("Boxplot of price and depth") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face =  "bold"),
+              text = element_text(size = 12),
+              axis.title = element_text(face="bold"),
+              axis.text.x=element_text(size = 11)) 
+boxplot_d
+
+boxplot_h<-ikea %>% 
+   ggplot(aes(x = price, y = height)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "height")+
+        scale_x_discrete(name = "price") +
+        ggtitle("Boxplot of price and height") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face =  "bold"),
+              text = element_text(size = 12),
+              axis.title = element_text(face="bold"),
+              axis.text.x=element_text(size = 11)) 
+boxplot_h
+
+boxplot_w<-ikea %>% 
+   ggplot(aes(x = price, y = width)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "width")+
+        scale_x_discrete(name = "price") +
+        ggtitle("Boxplot of price and width") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face =  "bold"),
+              text = element_text(size = 12),
+              axis.title = element_text(face="bold"),
+              axis.text.x=element_text(size = 11)) 
+boxplot_w
+
+boxplot_v<-ikea %>% 
+   ggplot(aes(x = price, y = volume)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "volume")+
+        scale_x_discrete(name = "price") +
+        ggtitle("Boxplot of price and volume") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face =  "bold"),
+              text = element_text(size = 12),
+              axis.title = element_text(face="bold"),
+              axis.text.x=element_text(size = 11)) 
+boxplot_v
+```
