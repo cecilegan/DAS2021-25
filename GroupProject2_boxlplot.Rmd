@@ -16,13 +16,20 @@ library(knitr)
 
 
 ``` {R data.processing}
+set.seed(2021)
 ikea <- read.csv("dataset25.csv")
 
 ikea$price <- cut(ikea$price, breaks = c(-Inf, 1000, Inf), labels = c("0", "1"))
 ikea<-ikea %>%
   mutate(volume=depth*height*width)
 
-
+n=nrow(ikea)
+ind1 <- sample(c(1:n),round(3*n/4))
+ind2 <- setdiff(c(1:n),c(ind1))
+train_data <- ikea[ind1,]
+test_data <- ikea[ind2,]
+write.csv(train_data, file = "D:\\train_data.csv", row.names = FALSE)
+write.csv(test_data, file = "D:\\test_data.csv", row.names = FALSE)
 ```
 
 ``` {R boxplot}
