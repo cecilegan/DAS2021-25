@@ -18,6 +18,22 @@ library(MASS)
 library(GGally)
 ```
 
+``` {R data.processing}
+set.seed(2021)
+ikea <- read.csv("dataset25.csv")
+
+ikea$price <- cut(ikea$price, breaks = c(-Inf, 1000, Inf), labels = c("0", "1"))
+ikea<-ikea %>%
+  mutate(volume=depth*height*width)
+
+n=nrow(ikea)
+ind1 <- sample(c(1:n),round(3*n/4))
+ind2 <- setdiff(c(1:n),c(ind1))
+train_data <- ikea[ind1,]
+test_data <- ikea[ind2,]
+write.csv(train_data, file = "D:\\train_data.csv", row.names = FALSE)
+write.csv(test_data, file = "D:\\test_data.csv", row.names = FALSE)
+```
 
 # Data Analysis {#sec:DA}
 
@@ -59,6 +75,24 @@ kable(summodel1$coefficients) %>%
 kable_styling(latex_options = 'HOLD_position')
 ```
 
+Thus, the fitted MLR model has the following form:
+
+$$ \widehat{ln(\frac{p}{1-p})}=-10.394+0.074 \cdot X_{depth}+0.022 \cdot X_{height}+0.027 \cdot X_{width}$$
+The confidence intervals of the coefficients of the final model are shown below (figure 2).
+
+``` {R ci_final_model}
+
+ci <- ggcoef(model1, vline_color = "red", conf.level = 0.95,
+       vline_linetype = "solid",
+       errorbar_color = "blue",
+       errorbar_height = .25,exclude_intercept = TRUE)
+
+```
+
+From the estimates above, increasing depth, height or width will increase the log-odds and therefore increase the probability of the price higher than 1000$. 
+
+The following code produces figure ?, which displays a plot of the residuals against the fitted values. From this it is evident the residuals are evenly scattered around zero. Also, the spread of the residuals remains constant across the fitted values. Hence the model assumptions of the residuals having mean zero and constant variance appear valid. Also, figure ? shows a histogram of the residuals, it appears a normal pattern centered at zero. Hence, it is concluded that the assumptions of the MLR model hold, that is, the residual has mean zero, constant variance and normal distribution.
+
 ```{r residual, echo = TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
 
 residual = as.vector(step_model1[[2]])
@@ -80,9 +114,13 @@ ggplot(dummy, aes(x = residual)) +
 ```{r all, echo = TRUE}
 AIC = 123.94
 R2 = summary(model1)[[7]]
-  
+test_data=na.omit(test_data)
 model1_predict = predict(model1, test_data)
-MSE1 = sum((test_data[4] - model1_predict)^2) / nrow(test_data)
+real_value=as.vector(test_data[4])
+real_value=as.matrix(real_value)
+real_value=as.vector(real_value)
+real_value=as.numeric(real_value)
+MSE1 = sum((real_value - model1_predict)^2) / nrow(test_data)
 
 MSE_table = round(cbind(AIC,R2,MSE1), digit=3)
 rownames(MSE_table) = "The fitted model"
