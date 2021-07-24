@@ -1,0 +1,59 @@
+---
+title: "GroupProject2_model"
+author: "Yufeng Zhang"
+date: "2021/7/24"
+output: html_document
+---
+
+```{r libraries, echo = FALSE, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(moderndive)
+library(pastecs)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(dplyr)
+library(knitr)
+library(MASS)
+library(GGally)
+```
+
+# Data Analysis {#sec:DA}
+
+We began by fitting the first order full GLM model of the following form:
+
+$$ \widehat{ln(\frac{p}{1-p})}=\hat{\alpha}+\hat{\beta}_{depth}X_{depth}+\hat{\beta}_{height}X_{height}+\hat{\beta}_{width}X_{width}+\hat{\beta}_{volume}X_{volume}$$
+where
+
+* p is the probability of price being 1.
+* $\widehat{ln(\frac{p}{1-p})}$ is the log-odds of the price being 1.
+* $\hat{\alpha}$ is the intercept, the baseline level of log-odds.
+* $\hat{\beta}$ is the slope coefficient associated with the exploratory variables.
+* $X_i$ is the value of the explanatory variable for the observation.
+
+Figure below displays the confidence intervals of the coefficients in the full model. From this it is evident that the parameter of `volume` is close to zero, therefore the effects of it are likely insignificant.
+
+``` {R fullmodel, echo=TRUE, eval=TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
+full_model <- glm(price ~ depth+height+width+volume, data = ikea, 
+                            family = binomial(link = "logit"))
+ggcoef(full_model,vline_color = "red",
+       vline_linetype = "solid",
+       errorbar_color = "blue",
+       errorbar_height = .25,exclude_intercept = TRUE)
+```
+
+Stepwise regression was undertaken to determine the best-fitting model based on AIC. We began with the full model as the initial model, then variables were systematically added or removed (i.e. both forward and backward selection) based on a defined criterion, the lower AIC. From the R output below we can see the model with the lowest AIC is the final model which has an AIC of 159.99 and includes the variables depth, height and width, which is unsurprising as we determined their insignificance in figure above.
+
+```{r stepwise, echo = TRUE, eval= TRUE, warning=FALSE, message=FALSE}
+step_model1 = stepAIC(full_model, direction = "both", k = 2)
+```
+
+The following code produces table 1, which shows the selected model and its corresponding parameter estimates. Notice that the variables are all significant at predicting the log-odds at the 5% significance level, as their p-values are all close to 0.
+
+```{r newmodel, echo = TRUE, eval= TRUE, warning=FALSE, message=FALSE}
+model1 <- glm(price ~ depth+height+width, data = ikea, 
+                            family = binomial(link = "logit"))
+get_regression_table(model1) %>%
+kable() %>%
+kable_styling(latex_options = 'HOLD_position')
+```
