@@ -24,8 +24,24 @@ set.seed(2021)
 ikea <- read.csv("dataset25.csv")
 
 ikea$price <- cut(ikea$price, breaks = c(-Inf, 1000, Inf), labels = c("0", "1"))
-ikea<-ikea %>%
-  mutate(volume=depth*height*width)
+
+data<-ikea
+
+data$sellable_online[data$sellable_online==TRUE] = 1
+data$sellable_online[data$sellable_online==FALSE] = 0
+data$other_colors[data$other_colors=="Yes"] = 1
+data$other_colors[data$other_colors=="No"] = 0
+
+data$depth[is.na(data$depth)] = mean(data$depth,na.rm=T)
+data$height[is.na(data$height)] = mean(data$height,na.rm=T)
+data$width[is.na(data$width)] = mean(data$width,na.rm=T)
+
+data$volume = data$depth * data$height * data$width
+
+data$price[data$price <= 1000] = 0
+data$price[data$price > 1000] = 1
+
+ikea<-data
 
 n=nrow(ikea)
 ind1 <- sample(c(1:n),round(3*n/4))
@@ -52,7 +68,7 @@ where
 Figure below displays the confidence intervals of the coefficients in the full model. From this it is evident that the parameter of `volume` is close to zero, therefore the effects of it are likely insignificant.
 
 ``` {R fullmodel, echo=TRUE, eval=TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
-full_model <- glm(price ~ depth*height*width+other_colors, data = train_data, 
+full_model <- glm(price ~ depth*height*width+other_colors+category, data = train_data, 
                   family = binomial(link = "logit"))
 ggcoef(full_model,vline_color = "red",
        vline_linetype = "solid",
