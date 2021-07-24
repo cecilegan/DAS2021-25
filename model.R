@@ -1,12 +1,19 @@
-model1 <- glm(price ~ depth+height+width, data = ikea, 
-             family = binomial(link = "logit"))
+library(tidyverse)
+library(moderndive)
+library(pastecs)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(dplyr)
+library(knitr)
+library(MASS)
+library(GGally)
 
-model1 %>%
-  summary()
+full_model <- model1 <- glm(price ~ depth+height+width+volume, data = ikea, 
+                            family = binomial(link = "logit"))
 
+summary(full_model)
 
-model2 <- glm(price ~ volume, data = ikea, 
-             family = binomial(link = "logit"))
+step_model1 = stepAIC(full_model, direction = "both", k = 2)
 
-model2 %>%
-  summary()
+summary(step_model1)
