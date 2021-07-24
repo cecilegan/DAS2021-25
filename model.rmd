@@ -18,6 +18,7 @@ library(MASS)
 library(GGally)
 ```
 
+
 # Data Analysis {#sec:DA}
 
 We began by fitting the first order full GLM model of the following form:
@@ -34,7 +35,7 @@ where
 Figure below displays the confidence intervals of the coefficients in the full model. From this it is evident that the parameter of `volume` is close to zero, therefore the effects of it are likely insignificant.
 
 ``` {R fullmodel, echo=TRUE, eval=TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
-full_model <- glm(price ~ depth+height+width+volume, data = ikea, 
+full_model <- glm(price ~ depth+height+width+volume, data = train_data, 
                             family = binomial(link = "logit"))
 ggcoef(full_model,vline_color = "red",
        vline_linetype = "solid",
@@ -42,7 +43,7 @@ ggcoef(full_model,vline_color = "red",
        errorbar_height = .25,exclude_intercept = TRUE)
 ```
 
-Stepwise regression was undertaken to determine the best-fitting model based on AIC. We began with the full model as the initial model, then variables were systematically added or removed (i.e. both forward and backward selection) based on a defined criterion, the lower AIC. From the R output below we can see the model with the lowest AIC is the final model which has an AIC of 159.99 and includes the variables depth, height and width, which is unsurprising as we determined their insignificance in figure above.
+Stepwise regression was undertaken to determine the best-fitting model based on AIC. We began with the full model as the initial model, then variables were systematically added or removed (i.e. both forward and backward selection) based on a defined criterion, the lower AIC. From the R output below we can see the model with the lowest AIC is the final model which has an AIC of 123.94 and includes the variables depth, height and width, which is unsurprising as we determined their insignificance in figure above.
 
 ```{r stepwise, echo = TRUE, eval= TRUE, warning=FALSE, message=FALSE}
 step_model1 = stepAIC(full_model, direction = "both", k = 2)
@@ -51,9 +52,41 @@ step_model1 = stepAIC(full_model, direction = "both", k = 2)
 The following code produces table 1, which shows the selected model and its corresponding parameter estimates. Notice that the variables are all significant at predicting the log-odds at the 5% significance level, as their p-values are all close to 0.
 
 ```{r newmodel, echo = TRUE, eval= TRUE, warning=FALSE, message=FALSE}
-model1 <- glm(price ~ depth+height+width, data = ikea, 
+model1 <- glm(price ~ depth+height+width, data = train_data, 
                             family = binomial(link = "logit"))
-get_regression_table(model1) %>%
-kable() %>%
+summodel1=summary(model1)
+kable(summodel1$coefficients) %>%
 kable_styling(latex_options = 'HOLD_position')
+```
+
+```{r residual, echo = TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
+
+residual = as.vector(step_model1[[2]])
+fitted_value = as.vector(step_model1[[3]])
+dummy = cbind(residual,fitted_value)
+dummy = as.data.frame(dummy)
+ggplot(dummy, aes(x = fitted_value, y = residual)) +
+  geom_point() +
+  labs(x = "Fitted value", y = "Residual")  +
+  geom_hline(yintercept = 0, col = "blue", size = 1)
+```
+
+```{r hist, echo = TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
+ggplot(dummy, aes(x = residual)) +
+  geom_histogram(color = "white") +
+  labs(x = "Residual")
+```
+
+```{r all, echo = TRUE}
+AIC = 123.94
+R2 = summary(model1)[[7]]
+  
+model1_predict = predict(model1, test_data)
+MSE1 = sum((test_data[4] - model1_predict)^2) / nrow(test_data)
+
+MSE_table = round(cbind(AIC,R2,MSE1), digit=3)
+rownames(MSE_table) = "The fitted model"
+colnames(MSE_table) = c("AIC", "Adjusted R-squared", "MSE")
+kable(MSE_table) %>%
+kable_styling(latex_options = "hold_position")
 ```
