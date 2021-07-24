@@ -17,39 +17,20 @@ library(knitr)
 library(MASS)
 library(GGally)
 library(pROC)
+library(olsrr)
 ```
 
 ``` {R data.processing}
 set.seed(2021)
 ikea <- read.csv("dataset25.csv")
 
-ikea$price <- cut(ikea$price, breaks = c(-Inf, 1000, Inf), labels = c("0", "1"))
-
-data<-ikea
-
-data$sellable_online[data$sellable_online==TRUE] = 1
-data$sellable_online[data$sellable_online==FALSE] = 0
-data$other_colors[data$other_colors=="Yes"] = 1
-data$other_colors[data$other_colors=="No"] = 0
-
-data$depth[is.na(data$depth)] = mean(data$depth,na.rm=T)
-data$height[is.na(data$height)] = mean(data$height,na.rm=T)
-data$width[is.na(data$width)] = mean(data$width,na.rm=T)
-
-data$volume = data$depth * data$height * data$width
-
-data$price[data$price <= 1000] = 0
-data$price[data$price > 1000] = 1
-
-ikea<-data
+ikea = data
 
 n=nrow(ikea)
 ind1 <- sample(c(1:n),round(3*n/4))
 ind2 <- setdiff(c(1:n),c(ind1))
 train_data <- ikea[ind1,]
 test_data <- ikea[ind2,]
-write.csv(train_data, file = "D:\\train_data.csv", row.names = FALSE)
-write.csv(test_data, file = "D:\\test_data.csv", row.names = FALSE)
 ```
 
 # Data Analysis {#sec:DA}
@@ -68,83 +49,61 @@ where
 Figure below displays the confidence intervals of the coefficients in the full model. From this it is evident that the parameter of `volume` is close to zero, therefore the effects of it are likely insignificant.
 
 ``` {R fullmodel, echo=TRUE, eval=TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
-full_model <- glm(price ~ depth*height*width+other_colors+category, data = train_data, 
-                  family = binomial(link = "logit"))
-ggcoef(full_model,vline_color = "red",
-       vline_linetype = "solid",
-       errorbar_color = "blue",
-       errorbar_height = .25,exclude_intercept = TRUE)
+full_model <- glm(price ~ depth*height*width+other_colors+category, data = train_data, family = binomial(link = "logit"))
+summary(full_model)
 ```
 
-Stepwise regression was undertaken to determine the best-fitting model based on AIC. We began with the full model as the initial model, then variables were systematically added or removed (i.e. both forward and backward selection) based on a defined criterion, the lower AIC. From the R output below we can see the model with the lowest AIC is the final model which has an AIC of 123.94 and includes the variables depth, height and width, which is unsurprising as we determined their insignificance in figure above.
+Stepwise regression was undertaken to determine the best-fitting model based on AIC. We began with the full model as the initial model, then variables were systematically added or removed (i.e. both forward and backward selection) based on a defined criterion, the lower AIC. From the R output below we can see the model with the lowest AIC is the final model which has an AIC of 267, includes the variables depth, height, width and category.
 
 ```{r stepwise, echo = TRUE, eval= TRUE, warning=FALSE, message=FALSE}
 step_model1 = stepAIC(full_model, direction = "both", k = 2)
+summary(step_model1)
 ```
 
-The following code produces table 1, which shows the selected model and its corresponding parameter estimates. Notice that the variables are all significant at predicting the log-odds at the 5% significance level, as their p-values are all close to 0.
-
-```{r newmodel, echo = TRUE, eval= TRUE, warning=FALSE, message=FALSE}
-train_data<-train_data %>%
-  mutate(depth_width=depth*width)
-model1 <- glm(price ~ depth_width+height, data = train_data, 
-                            family = binomial(link = "logit"))
-summodel1=summary(model1)
-kable(summodel1$coefficients) %>%
-kable_styling(latex_options = 'HOLD_position')
+```{r predict}
+test_predict = predict(step_model1, test_data)
+test_data$prob = exp(test_predict) / ( 1 + exp(test_predict))
+test_data$predict = exp(test_predict) / ( 1 + exp(test_predict))
+test_data$predict[test_data$prob >= 0.5] = 1
+test_data$predict[test_data$prob < 0.5] = 0
+test_data$predict == test_data$price
 ```
 
-Thus, the fitted MLR model has the following form:
+```{r 2x2 table}
+test_data$price = as.character(test_data$price)
+test_data$predict = as.character(test_data$predict)
 
-$$ \widehat{ln(\frac{p}{1-p})}=-10.394+0.074 \cdot X_{depth}+0.022 \cdot X_{height}+0.027 \cdot X_{width}$$
-The confidence intervals of the coefficients of the final model are shown below (figure 2).
+data1 = test_data[test_data$price == "0",]
+data2 = test_data[test_data$price == "1",]
 
-``` {R ci_final_model}
+a = table(data1$price == data1$predict)
+b = table(data2$price == data2$predict)
 
-ci <- ggcoef(model1, vline_color = "red", conf.level = 0.95,
-       vline_linetype = "solid",
-       errorbar_color = "blue",
-       errorbar_height = .25,exclude_intercept = TRUE)
+table = matrix(c(71,12,14,28), nrow=2)
+table[1,] = table[1,] / (71+14)
+table[2,] = table[2,] / (12+28)
 
-ci
+rownames(table) = c("actual value 0","actual value 1")
+colnames(table) = c("predict value 0","predict value 1")
+kable(table)
 ```
 
-From the estimates above, increasing depth, height or width will increase the log-odds and therefore increase the probability of the price higher than 1000$. 
-
-The following code produces figure ?, which displays a plot of the residuals against the fitted values. From this it is evident the residuals are evenly scattered around zero. Also, the spread of the residuals remains constant across the fitted values. Hence the model assumptions of the residuals having mean zero and constant variance appear valid. Also, figure ? shows a histogram of the residuals, it appears a normal pattern centered at zero. Hence, it is concluded that the assumptions of the MLR model hold, that is, the residual has mean zero, constant variance and normal distribution.
-
-```{r residual, echo = TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
-
-residual = as.vector(step_model1[[2]])
-fitted_value = as.vector(step_model1[[3]])
-dummy = cbind(residual,fitted_value)
-dummy = as.data.frame(dummy)
-ggplot(dummy, aes(x = fitted_value, y = residual)) +
-  geom_point() +
-  labs(x = "Fitted value", y = "Residual")  +
-  geom_hline(yintercept = 0, col = "blue", size = 1)
+```{r rate}
+classication_rate = (71+28)/(125)
+classication_rate
 ```
 
-```{r hist, echo = TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
-ggplot(dummy, aes(x = residual)) +
-  geom_histogram(color = "white") +
-  labs(x = "Residual")
+```{r roc}
+roc(test_data$price, test_data$prob, plot=TRUE, print.thres=TRUE, print.auc=TRUE)
 ```
 
-```{r all, echo = TRUE}
-AIC = 123.94
-R2 = summary(model1)[[7]]
-test_data=na.omit(test_data)
-model1_predict = predict(model1, test_data)
-real_value=as.vector(test_data[4])
-real_value=as.matrix(real_value)
-real_value=as.vector(real_value)
-real_value=as.numeric(real_value)
-MSE1 = sum((real_value - model1_predict)^2) / nrow(test_data)
 
-MSE_table = round(cbind(AIC,R2,MSE1), digit=3)
-rownames(MSE_table) = "The fitted model"
-colnames(MSE_table) = c("AIC", "Adjusted R-squared", "MSE")
-kable(MSE_table) %>%
-kable_styling(latex_options = "hold_position")
-```
+
+
+
+
+
+
+
+
+
