@@ -16,6 +16,7 @@ library(dplyr)
 library(knitr)
 library(MASS)
 library(GGally)
+library(pROC)
 ```
 
 ``` {R data.processing}
@@ -39,7 +40,7 @@ write.csv(test_data, file = "D:\\test_data.csv", row.names = FALSE)
 
 We began by fitting the first order full GLM model of the following form:
 
-$$ \widehat{ln(\frac{p}{1-p})}=\hat{\alpha}+\hat{\beta}_{depth}X_{depth}+\hat{\beta}_{height}X_{height}+\hat{\beta}_{width}X_{width}+\hat{\beta}_{volume}X_{volume}$$
+$$ \widehat{ln(\frac{p}{1-p})}=\hat{\alpha} +\hat{\beta}_{\mbox{other_colors}}\cdot\mathbb{I}_{\mbox{other_colors}}(x)+\hat{\beta}_{depth}X_{depth}+\hat{\beta}_{height}X_{height}+\hat{\beta}_{width}X_{width}+\hat{\beta}_{volume}X_{volume}$$
 where
 
 * p is the probability of price being 1.
@@ -51,8 +52,8 @@ where
 Figure below displays the confidence intervals of the coefficients in the full model. From this it is evident that the parameter of `volume` is close to zero, therefore the effects of it are likely insignificant.
 
 ``` {R fullmodel, echo=TRUE, eval=TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
-full_model <- glm(price ~ depth+height+width+volume, data = train_data, 
-                            family = binomial(link = "logit"))
+full_model <- glm(price ~ depth*height*width+other_colors, data = train_data, 
+                  family = binomial(link = "logit"))
 ggcoef(full_model,vline_color = "red",
        vline_linetype = "solid",
        errorbar_color = "blue",
@@ -68,7 +69,9 @@ step_model1 = stepAIC(full_model, direction = "both", k = 2)
 The following code produces table 1, which shows the selected model and its corresponding parameter estimates. Notice that the variables are all significant at predicting the log-odds at the 5% significance level, as their p-values are all close to 0.
 
 ```{r newmodel, echo = TRUE, eval= TRUE, warning=FALSE, message=FALSE}
-model1 <- glm(price ~ depth+height+width, data = train_data, 
+train_data<-train_data %>%
+  mutate(depth_width=depth*width)
+model1 <- glm(price ~ depth_width+height, data = train_data, 
                             family = binomial(link = "logit"))
 summodel1=summary(model1)
 kable(summodel1$coefficients) %>%
@@ -87,6 +90,7 @@ ci <- ggcoef(model1, vline_color = "red", conf.level = 0.95,
        errorbar_color = "blue",
        errorbar_height = .25,exclude_intercept = TRUE)
 
+ci
 ```
 
 From the estimates above, increasing depth, height or width will increase the log-odds and therefore increase the probability of the price higher than 1000$. 
