@@ -1,0 +1,256 @@
+---
+title: "Analysis of the effect of properties of furniture on the cost"
+author: "Ho Kwan Tang, Calli Dougall, Yufeng Zhang, Rui Sun, Bixia Gan"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+    number_sections: no
+  html_document:
+    df_print: paged
+fig_caption: yes
+---
+
+```{r libraries, echo = FALSE, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(moderndive)
+library(pastecs)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(dplyr)
+library(knitr)
+library(MASS)
+library(GGally)
+library(sjPlot)
+```
+
+# Data processing {#sec:DP}
+The data set consists of 500 observations, including 6 input variables used to estimate the price, which are: (`category`, `sellable_online`, `other_colors`, `depth`, `height`, `width`). However some data are missing. For simplicity, they are replaced by its mean.
+
+The variables (`depth`, `height`, `width`) are numerical values, while (`sellable_online`, `other_colors`) are the logical variables. For the variable (`category`), it consist of 17 different categories. The logical variables is transformed for the further analysis, now for the response "YES" it takes values , otherwise it is 0.
+
+Additionally, one variable called volume is added, which is depth x height x width, as it implies the volume of the furniture and may provide a good estimate and an easier interpretation.
+
+If the response variable `price` is greater than 1000, it take value 1, otherwise it is 0
+
+```{r data, echo = TRUE}
+data <- read.table("C:/Users/admin/Desktop/dataset25.csv",sep = ",", header = TRUE)
+
+data$sellable_online[data$sellable_online==TRUE] = 1
+data$sellable_online[data$sellable_online==FALSE] = 0
+data$other_colors[data$other_colors=="Yes"] = 1
+data$other_colors[data$other_colors=="No"] = 0
+
+data$depth[is.na(data$depth)] = mean(data$depth,na.rm=T)
+data$height[is.na(data$height)] = mean(data$height,na.rm=T)
+data$width[is.na(data$width)] = mean(data$width,na.rm=T)
+
+data$volume = data$depth * data$height * data$width
+
+data$price[data$price <= 1000] = 0
+data$price[data$price > 1000] = 1
+```
+
+# Exploratory Data Analysis {#sec:EDA}
+How many missing values? 
+196(39.2%) in depth, 119(23.8%) in height, 68(13.6%) in width
+
+``` {R missing count}
+old_data = read.table("C:/Users/admin/Desktop/dataset25.csv",sep = ",", header = TRUE)
+
+colSums(is.na(old_data))
+```
+
+``` {R missing proportions}
+colMeans(is.na(old_data))
+```
+
+How many furnitures cost more than 1000? 
+It is 33%
+
+``` {R price}
+mean(data$price)
+```
+
+The boxplots below show that the larger value in depth, height, width and volume, tend to has a price > 1000 on average.
+
+``` {R boxplot}
+data$price = as.character(data$price)
+
+boxplot_d = data %>% 
+   ggplot(aes(x = price, y = depth)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "depth")+
+        scale_x_discrete(name = "price") +
+        ggtitle("Boxplot of price and depth") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face =  "bold"),
+              text = element_text(size = 12),
+              axis.title = element_text(face="bold"),
+              axis.text.x=element_text(size = 11)) 
+boxplot_d
+
+boxplot_h<-data %>% 
+   ggplot(aes(x = price, y = height)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "height")+
+        scale_x_discrete(name = "price") +
+        ggtitle("Boxplot of price and height") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face =  "bold"),
+              text = element_text(size = 12),
+              axis.title = element_text(face="bold"),
+              axis.text.x=element_text(size = 11)) 
+boxplot_h
+
+boxplot_w<-data %>% 
+   ggplot(aes(x = price, y = width)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "width")+
+        scale_x_discrete(name = "price") +
+        ggtitle("Boxplot of price and width") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face =  "bold"),
+              text = element_text(size = 12),
+              axis.title = element_text(face="bold"),
+              axis.text.x=element_text(size = 11)) 
+boxplot_w
+
+boxplot_v<-data %>% 
+   ggplot(aes(x = price, y = volume)) +
+        geom_boxplot(alpha=0.7) +
+        scale_y_continuous(name = "volume")+
+        scale_x_discrete(name = "price") +
+        ggtitle("Boxplot of price and volume") +
+        theme_bw() +
+        theme(plot.title = element_text(size = 14, face =  "bold"),
+              text = element_text(size = 12),
+              axis.title = element_text(face="bold"),
+              axis.text.x=element_text(size = 11)) 
+boxplot_v
+```
+
+``` {R data.processing}
+set.seed(2021)
+ikea <- read.csv("dataset25.csv")
+
+ikea = data
+
+n=nrow(ikea)
+ind1 <- sample(c(1:n),round(3*n/4))
+ind2 <- setdiff(c(1:n),c(ind1))
+train_data <- ikea[ind1,]
+test_data <- ikea[ind2,]
+```
+
+# Data Analysis {#sec:DA}
+
+We began by fitting the first order full GLM model of the following form:
+
+$$ \ln\left(\frac{p}{1-p}\right) = \hat{\alpha} +  
+\hat{\beta}_{\mbox{other_colors}}\cdot\mathbb{I}_{\mbox{other_colors}}(x) +
+\hat{\beta}_{\mbox{category}}\cdot\mathbb{I}_{\mbox{category}}(x)+
+\widehat{\beta}_{depth}X_{depth_i} + \widehat{\beta}_{height}X_{height_i} + \widehat{\beta}_{width}X_{width_i}+ \widehat{\beta}_{dh}X_{dh_i}+ \widehat{\beta}_{dw}X_{dw_i}+ \widehat{\beta}_{hw}X_{hw_i}+ \widehat{\beta}_{dhw}X_{dhw_i}$$
+where
+
+* p is the probability of price being 1.
+* $\widehat{ln(\frac{p}{1-p})}$ is the log-odds of the price being 1.
+* $\hat{\alpha}$ is the intercept, the baseline level of log-odds.
+* $\hat{\beta}$ is the slope coefficient associated with the exploratory variables.
+* $X_i$ is the value of the corresponding explanatory variable for the $i^{th}$ observation 
+* $X_{dh_i}$ is the value of the interaction of variables depth and height for the $i^{th}$ observation ,$X_{dw_i}$ and $X_{hw_i}$ have the same meaning 
+* $\mathbb{I}_{\mbox{other_colors}}(x)$ is an indicator function such that
+$$\mathbb{I}_{\mbox{other_colors}}(x)=\left\{
+\begin{array}{ll}
+1 ~~~ \mbox{if the color of} ~ x \mbox{th observation is other colors},\\
+0 ~~~ \mbox{Otherwise}.\\
+\end{array}
+\right.$$ 
+* $\mathbb{I}_{\mbox{category}}(x)$ is an indicator function such that
+$$\mathbb{I}_{\mbox{category}}(x)=\left\{
+\begin{array}{ll}
+1 ~~~ \mbox{if the category of} ~ x \mbox{th observation is the selected one},\\
+0 ~~~ \mbox{Otherwise}.\\
+\end{array}
+\right.$$.
+
+Through the p-value in the following R code, we can see that some components are not significant in the model, for they are more than 0.05, so we use AIC method to select the "best" model.
+
+``` {R fullmodel, echo=TRUE, eval=TRUE, out.width = '80%', fig.align = "center", fig.pos = 'H'}
+full_model <- glm(price ~ depth*height*width+other_colors+category, data = train_data, family = binomial(link = "logit"))
+summary(full_model)
+```
+
+Stepwise regression was undertaken to determine the best-fitting model based on AIC. We began with the full model as the initial model, then variables were systematically added or removed (i.e. both forward and backward selection) based on a defined criterion, the lower AIC. From the R output below we can see the model with the lowest AIC is the final model which has an AIC of 267, includes the variables depth, height, width and category.
+
+```{r stepwise, echo = TRUE, eval= TRUE, warning=FALSE, message=FALSE}
+step_model1 = stepAIC(full_model, direction = "both", k = 2)
+summary(step_model1)
+```
+Therefore, the final model is:
+
+$$ \ln\left(\frac{p}{1-p}\right) = -9.027 + 0.051 X_{depth_i} + 0.030 X_{height_i} + 0.047 X_{width_i}+
+\hat{\beta}_{\mbox{category}}\cdot\mathbb{I}_{\mbox{category}}(x)$$
+
+where
+
+* p is the probability of price being 1.
+* $\widehat{ln(\frac{p}{1-p})}$ is the log-odds of the price being 1.
+* $\hat{\alpha}=-9.027$ is the intercept, the baseline level of log-odds.
+* $\hat{\beta}=0.051$ is the slope coefficient associated with the exploratory variables.
+* $X_i$ is the value of the corresponding explanatory variable for the $i^{th}$ observation 
+* $\mathbb{I}_{\mbox{category}}(x)$ is an indicator function such that
+$$\mathbb{I}_{\mbox{category}}(x)=\left\{
+\begin{array}{ll}
+1 ~~~ \mbox{if the category of} ~ x \mbox{th observation is the selected one},\\
+0 ~~~ \mbox{Otherwise}.\\
+\end{array}
+\right.$$.
+
+Then we can use the test data to test the model whether it is good to use. We test the model through looking at the value of p in the log-odds. If it equals to 1 or 0, it means the prediction is right, otherwise the prediction is wrong.
+The following 125 data shows the prediction result of the model. We can see that most prediction of the data is TRUE, and less FALSE, which means the prediction of the model is good.
+
+```{r predict}
+test_predict = predict(step_model1, test_data)
+test_data$prob = exp(test_predict) / ( 1 + exp(test_predict))
+test_data$predict = exp(test_predict) / ( 1 + exp(test_predict))
+test_data$predict[test_data$prob >= 0.5] = 1
+test_data$predict[test_data$prob < 0.5] = 0
+test_data$predict == test_data$price
+```
+
+The rate of predicting value 0 well is 83.5%, which is very good to do the prediction.
+The rate of predicting value 1 well is 70.0%, and the false prediction is 30%, which is good but not enough. 
+
+```{r 2x2 table}
+test_data$price = as.character(test_data$price)
+test_data$predict = as.character(test_data$predict)
+
+data1 = test_data[test_data$price == "0",]
+data2 = test_data[test_data$price == "1",]
+
+a = table(data1$price == data1$predict)
+b = table(data2$price == data2$predict)
+
+table = matrix(c(71,12,14,28), nrow=2)
+table[1,] = table[1,] / (71+14)
+table[2,] = table[2,] / (12+28)
+
+rownames(table) = c("actual value 0","actual value 1")
+colnames(table) = c("predict value 0","predict value 1")
+kable(table)
+```
+
+Here we can see that the overall right classification rate is 0.792, which seems good enough  for the model to fit the data.
+
+```{r rate}
+classication_rate = (71+28)/(125)
+classication_rate
+```
+
+Here we use ROC curve to show the performance of the predictions from our model in terms of the true positive and false positive rates.
+The area under the curve is about 0.872, which is reasonable considering that we have used four of the predictors available in the data.
+
+```{r roc}
+roc(test_data$price, test_data$prob, plot=TRUE, print.thres=TRUE, print.auc=TRUE)
+```
