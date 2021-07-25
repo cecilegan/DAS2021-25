@@ -1,0 +1,37 @@
+```{r libraries, echo = FALSE, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(moderndive)
+library(pastecs)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(dplyr)
+library(knitr)
+library(MASS)
+library(GGally)
+```
+
+# Data processing {#sec:DP}
+The data set consists of 500 observations, including 6 input variables used to estimate the price, which are: (`category`, `sellable_online`, `other_colors`, `depth`, `height`, `width`). However some data are missing. For simplicity, they are replaced by its mean.
+
+The variables (`depth`, `height`, `width`) are numerical values, while (`sellable_online`, `other_colors`) are the logical variables. For the variable (`category`), it consist of 17 different categories. The logical variables is transformed for the further analysis, now for the response "YES" it takes values , otherwise it is 0.
+
+Additionally, one variable called volume is added, which is depth x height x width, as it implies the volume of the furniture and may provide a good estimate and an easier interpretation.
+
+If the response variable `price` is greater than 1000, it take value 1, otherwise it is 0
+
+```{r data, echo = TRUE}
+data <- read.table("C:\\Users\\user\\Desktop\\dataset25.csv",sep = ",", header = TRUE)
+
+data$sellable_online[data$sellable_online==TRUE] = 1
+data$sellable_online[data$sellable_online==FALSE] = 0
+data$other_colors[data$other_colors=="Yes"] = 1
+data$other_colors[data$other_colors=="No"] = 0
+
+data$depth[is.na(data$depth)] = mean(data$depth,na.rm=T)
+data$height[is.na(data$height)] = mean(data$height,na.rm=T)
+data$width[is.na(data$width)] = mean(data$width,na.rm=T)
+
+data$price[data$price <= 1000] = 0
+data$price[data$price > 1000] = 1
+```

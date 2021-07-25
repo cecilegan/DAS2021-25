@@ -1,3 +1,5 @@
+
+=======
 ---
 title: "GroupProject2_model"
 author: "Yufeng Zhang"
@@ -146,14 +148,5 @@ The area under the curve is about 0.872, which is reasonable considering that we
 ```{r roc}
 roc(test_data$price, test_data$prob, plot=TRUE, print.thres=TRUE, print.auc=TRUE)
 ```
-
-
-
-
-
-
-
-
-
 
 
